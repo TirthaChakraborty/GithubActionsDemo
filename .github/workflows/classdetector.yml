@@ -1,0 +1,13 @@
+name: Class File Detector
+'on':
+  push:
+    paths:
+      - '**/*.cls'
+jobs:
+  say-class-found:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Print class found
+        run: echo "This is a .cls file"
