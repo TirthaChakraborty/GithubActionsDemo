@@ -1,0 +1,50 @@
+name: Check for SELECT in .cls files
+
+on:
+  push:
+    branches:
+      - main # or your target branch
+
+jobs:
+  check_cls_files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Get full history to compare commits
+
+      - name: Get list of changed files
+        id: changed-files
+        run: |
+          echo "Finding changed .cls files..."
+          # Get a list of added or modified files in the latest commit
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.cls$')
+          
+          # If no .cls files are changed, exit successfully
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No .cls files were added or modified in this commit. Exiting."
+            exit 0
+          fi
+          
+          echo "CHANGED_FILES=${CHANGED_FILES}" >> $GITHUB_OUTPUT
+
+      - name: Scan changed .cls files for forbidden keyword
+        if: steps.changed-files.outputs.CHANGED_FILES != ''
+        run: |
+          FORBIDDEN_KEYWORD="SELECT.*FROM"
+          
+          # Loop through each changed .cls file
+          for file in ${{ steps.changed-files.outputs.CHANGED_FILES }}; do
+            echo "Checking file: ${file}"
+            
+            # Use 'grep' with the -q flag for quiet mode (exits on first match)
+            if grep -qE "${FORBIDDEN_KEYWORD}" "${file}"; then
+              echo "::error file=${file}::Found forbidden keyword '${FORBIDDEN_KEYWORD}' in ${file}. Commit will fail."
+              echo "Error: The file '${file}' contains the forbidden keyword '${FORBIDDEN_KEYWORD}'."
+              exit 1 # Fail the workflow
+            else
+              echo "No forbidden keyword found in ${file}."
+            fi
+          done
